@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Drift Plot — IMU Dead-Reckoning Estimator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #0b1210;
+    --bg-panel: #101915;
+    --bg-panel-2: #0d1512;
+    --grid-line: #1d2a24;
+    --grid-line-strong: #2a3b33;
+    --amber: #e2a340;
+    --amber-dim: #8a6a30;
+    --cyan: #5fd4c9;
+    --cyan-dim: #35766f;
+    --coral: #d9705a;
+    --violet: #9a8cd4;
+    --text: #dfe6e1;
+    --text-dim: #7f8f86;
+    --text-faint: #4d5c54;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--body);}
+  body{
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    min-height:100vh;
+  }
+  a{color:var(--cyan);}
+  .wrap{max-width:1320px;margin:0 auto;padding:28px 24px 60px;}
+
+  header.masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--grid-line-strong);
+    padding-bottom:16px;margin-bottom:22px;flex-wrap:wrap;gap:10px;
+  }
+  .masthead-title{display:flex;align-items:baseline;gap:12px;}
+  .masthead-title h1{
+    font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:0.5px;
+    margin:0;color:var(--text);
+  }
+  .masthead-title h1 span{color:var(--amber);}
+  .masthead-sub{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);letter-spacing:0.5px;}
+  .masthead-meta{font-family:var(--mono);font-size:11px;color:var(--text-faint);text-align:right;line-height:1.6;}
+  .masthead-meta b{color:var(--text-dim);}
+
+  .grid{display:grid;grid-template-columns: 300px 1fr;gap:20px;}
+  @media (max-width: 900px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--grid-line-strong);
+    border-radius:3px;
+  }
+  .panel-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;border-bottom:1px solid var(--grid-line);
+  }
+  .panel-head .eyebrow{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--text-dim);
+  }
+
+  /* Sidebar: IMU profiles */
+  .imu-list{padding:12px;display:flex;flex-direction:column;gap:10px;}
+  .imu-card{
+    border:1px solid var(--grid-line-strong);border-left:3px solid var(--imu-color, var(--amber));
+    background:var(--bg-panel-2);border-radius:2px;padding:10px 11px;
+  }
+  .imu-card-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .imu-swatch{width:9px;height:9px;border-radius:50%;background:var(--imu-color);flex-shrink:0;}
+  .imu-name-input{
+    background:transparent;border:none;color:var(--text);font-family:var(--display);
+    font-size:13.5px;font-weight:600;flex:1;min-width:0;padding:2px 0;
+  }
+  .imu-name-input:focus{outline:none;border-bottom:1px solid var(--amber-dim);}
+  .imu-remove{
+    background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:15px;
+    line-height:1;padding:0 2px;
+  }
+  .imu-remove:hover{color:var(--coral);}
+  .imu-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;}
+  .field-mini label{
+    display:block;font-family:var(--mono);font-size:9px;color:var(--text-faint);
+    text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;
+  }
+  .field-mini input{
+    width:100%;background:var(--bg);border:1px solid var(--grid-line-strong);border-radius:2px;
+    color:var(--cyan);font-family:var(--mono);font-size:12px;padding:4px 6px;
+  }
+  .field-mini input:focus{outline:none;border-color:var(--cyan-dim);}
+
+  .sidebar-actions{padding:10px 12px 14px;display:flex;flex-direction:column;gap:8px;}
+  select, button.btn{
+    width:100%;background:var(--bg-panel-2);border:1px solid var(--grid-line-strong);
+    color:var(--text);font-family:var(--body);font-size:12.5px;padding:8px 10px;border-radius:2px;
+    cursor:pointer;
+  }
+  select{color:var(--text-dim);}
+  button.btn{color:var(--amber);border-color:var(--amber-dim);font-weight:600;letter-spacing:0.2px;}
+  button.btn:hover{background:#171f1a;}
+  button.btn.secondary{color:var(--text-dim);border-color:var(--grid-line-strong);font-weight:500;}
+
+  .note{
+    font-family:var(--mono);font-size:10.5px;color:var(--text-faint);line-height:1.6;
+    padding:12px 14px;border-top:1px solid var(--grid-line);
+  }
+
+  /* Main area */
+  .controls-bar{
+    display:flex;gap:18px;flex-wrap:wrap;padding:14px 16px;
+  }
+  .control{min-width:150px;flex:1;}
+  .control label{
+    display:block;font-family:var(--mono);font-size:10px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;
+  }
+  .control .value{color:var(--amber);font-weight:600;}
+  .control input[type=range]{
+    width:100%;accent-color:var(--amber);
+  }
+  .control input[type=number]{
+    width:100%;background:var(--bg);border:1px solid var(--grid-line-strong);color:var(--cyan);
+    font-family:var(--mono);font-size:12.5px;padding:6px 8px;border-radius:2px;
+  }
+  .toggle-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+  .toggle-row input{accent-color:var(--cyan);}
+
+  .section-title{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--text-faint);padding:14px 16px 0;
+  }
+
+  .plot-panel{padding:6px 10px 10px;}
+  svg.voyage{width:100%;height:auto;display:block;}
+  .legend-row{
+    display:flex;gap:16px;flex-wrap:wrap;padding:2px 16px 14px;
+    font-family:var(--mono);font-size:11px;color:var(--text-dim);
+  }
+  .legend-item{display:flex;align-items:center;gap:6px;}
+  .legend-dot{width:8px;height:8px;border-radius:50%;}
+
+  .chart-panel{padding:14px 16px 20px;margin-top:18px;}
+  .chart-panel canvas{max-height:340px;}
+
+  table.summary{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-top:18px;}
+  table.summary th, table.summary td{
+    border-bottom:1px solid var(--grid-line);padding:8px 10px;text-align:right;
+  }
+  table.summary th:first-child, table.summary td:first-child{text-align:left;}
+  table.summary th{
+    color:var(--text-faint);font-weight:500;text-transform:uppercase;font-size:10px;letter-spacing:0.5px;
+  }
+  table.summary td.imuname{font-family:var(--display);font-weight:600;font-size:12.5px;}
+  table.summary tr:hover{background:rgba(255,255,255,0.02);}
+
+  footer.disclaimer{
+    margin-top:26px;padding:14px 16px;border:1px solid var(--grid-line-strong);border-radius:3px;
+    background:var(--bg-panel);font-family:var(--mono);font-size:10.5px;color:var(--text-faint);line-height:1.7;
+  }
+  footer.disclaimer b{color:var(--text-dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="masthead-title">
+      <h1>DRIFT<span>PLOT</span></h1>
+      <div class="masthead-sub">UNAIDED / DEAD-RECKONING IMU ERROR ESTIMATOR — OPEN SEA</div>
+    </div>
+    <div class="masthead-meta">
+      MODEL&nbsp;<b>bias + random-walk, RSS-combined</b><br>
+      RANGE&nbsp;<b id="rangeMetaLabel">0–1500 km</b>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- SIDEBAR -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="eyebrow">IMU Profiles</span>
+        <span class="eyebrow" id="imuCount">0</span>
+      </div>
+      <div class="imu-list" id="imuList"></div>
+      <div class="sidebar-actions">
+        <select id="presetSelect">
+          <option value="">+ Load preset…</option>
+          <option value="consumer">Consumer MEMS (e.g. MPU-class)</option>
+          <option value="industrial">Industrial MEMS (e.g. ADIS16495-class)</option>
+          <option value="tactical">Tactical grade (e.g. STIM300-class)</option>
+          <option value="nav">Navigation grade (e.g. LN200/HG9900-class)</option>
+          <option value="marine">Marine FOG / strategic grade</option>
+        </select>
+        <button class="btn" id="addBlankBtn">+ Add blank IMU</button>
+      </div>
+      <div class="note">
+        Bias instability values are class-typical, illustrative figures pulled
+        from commonly published spec sheets for each grade — not any single
+        part number. Edit freely to match your actual datasheet.
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div>
+      <div class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">Voyage Parameters</span>
+        </div>
+        <div class="controls-bar">
+          <div class="control">
+            <label>Vessel / vehicle speed — <span class="value" id="speedVal">5.0 kn</span></label>
+            <input type="range" id="speedRange" min="0.5" max="30" step="0.5" value="5">
+          </div>
+          <div class="control">
+            <label>Max range — <span class="value" id="distVal">1500 km</span></label>
+            <input type="range" id="distRange" min="50" max="1500" step="10" value="1500">
+          </div>
+          <div class="control">
+            <label>Position fix interval (GPS/DVL/USBL reset) — <span class="value" id="fixVal">No fixes (pure DR)</span></label>
+            <input type="range" id="fixRange" min="0" max="500" step="5" value="0">
+          </div>
+          <div class="control" style="max-width:180px;">
+            <label>&nbsp;</label>
+            <div class="toggle-row"><input type="checkbox" id="logToggle"> <span>Log scale (Y axis)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Voyage Plot — estimated position uncertainty envelope (1σ, symmetric)</div>
+      <div class="panel plot-panel">
+        <svg class="voyage" id="voyageSvg" viewBox="0 0 900 560"></svg>
+        <div class="legend-row" id="legendRow"></div>
+      </div>
+
+      <div class="panel chart-panel">
+        <div class="panel-head" style="margin:-14px -16px 14px;">
+          <span class="eyebrow">Total position error vs. distance travelled</span>
+        </div>
+        <canvas id="errChart"></canvas>
+        <table class="summary" id="summaryTable"></table>
+      </div>
+
+      <footer class="disclaimer">
+        <b>Model notes.</b> Heading error is modelled as gyro bias-instability (grows ∝t) RSS-combined
+        with angle random walk (grows ∝√t); that heading error integrates into cross-track position error.
+        Along-track error follows the same structure from accelerometer bias-instability and velocity
+        random walk. Total position error is the RSS of cross-track and along-track terms. This is a
+        first-order, worst-case dead-reckoning model: it assumes a static residual bias between fixes,
+        no in-run bias re-estimation or Kalman filtering, no Schuler-loop dynamics, and no
+        sensor cross-coupling or vehicle motion effects (sculling, vibration rectification). Treat outputs
+        as order-of-magnitude sizing intuition for comparing IMU grades and fix intervals — not a
+        certified navigation-error budget.
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Constants ---------- */
+const DEG2RAD = Math.PI/180;
+const G = 9.80665;
+const KN2KMH = 1.852;
+const COLORS = ['#e2a340','#5fd4c9','#d9705a','#9a8cd4','#7bc47f','#e0d060'];
+
+const PRESETS = {
+  consumer:  { name:'Consumer MEMS',    gyroBias:10,    arw:0.50, accelBias:1000, vrw:0.050 },
+  industrial:{ name:'Industrial MEMS',  gyroBias:2,     arw:0.15, accelBias:15,   vrw:0.012 },
+  tactical:  { name:'Tactical grade',   gyroBias:0.5,   arw:0.06, accelBias:50,   vrw:0.020 },
+  nav:       { name:'Navigation grade', gyroBias:0.01,  arw:0.005,accelBias:5,    vrw:0.005 },
+  marine:    { name:'Marine FOG',       gyroBias:0.0008,arw:0.002,accelBias:2,    vrw:0.002 },
+};
+
+let idCounter = 0;
+let imus = [];
+let chart = null;
+
+/* ---------- State init ---------- */
+function makeIMU(preset, color){
+  idCounter++;
+  return {
+    id: idCounter,
+    name: preset ? preset.name : 'New IMU',
+    color: color,
+    gyroBias: preset ? preset.gyroBias : 1,     // deg/hr
+    arw: preset ? preset.arw : 0.1,              // deg/sqrt(hr)
+    accelBias: preset ? preset.accelBias : 100,  // micro-g
+    vrw: preset ? preset.vrw : 0.02,             // m/s / sqrt(hr)
+  };
+}
+
+function nextColor(){
+  return COLORS[(imus.length) % COLORS.length];
+}
+
+/* ---------- Physics ---------- */
+// returns {cross, along, total} in meters, given time in hours and speed in m/s
+function errorAt(imu, t_hr, v_ms){
+  const t_sec = t_hr*3600;
+
+  const gyroBiasRadPerSec = (imu.gyroBias*DEG2RAD)/3600;
+  const arwRadPerSqrtSec = (imu.arw*DEG2RAD)/Math.sqrt(3600);
+
+  const yBias = 0.5 * v_ms * gyroBiasRadPerSec * t_sec*t_sec;
+  const yArw  = v_ms * arwRadPerSqrtSec * (2/3) * Math.pow(t_sec, 1.5);
+  const cross = Math.sqrt(yBias*yBias + yArw*yArw);
+
+  const accelBiasMs2 = imu.accelBias * 1e-6 * G;
+  const vrwMsPerSqrtSec = imu.vrw / Math.sqrt(3600);
+
+  const xBias = 0.5 * accelBiasMs2 * t_sec*t_sec;
+  const xVrw  = vrwMsPerSqrtSec * (2/3) * Math.pow(t_sec, 1.5);
+  const along = Math.sqrt(xBias*xBias + xVrw*xVrw);
+
+  const total = Math.sqrt(cross*cross + along*along);
+  return {cross, along, total};
+}
+
+// compute a full series over distance 0..maxDist(km), with optional periodic fix reset (km)
+function computeSeries(imu, maxDistKm, speedKn, fixIntervalKm, nSamples=220){
+  const speedKmh = speedKn*KN2KMH;
+  const v_ms = speedKn*0.514444;
+  const pts = [];
+  for(let i=0;i<=nSamples;i++){
+    const d = maxDistKm*i/nSamples;
+    let dsf = d; // distance since fix
+    if(fixIntervalKm > 0){
+      dsf = d % fixIntervalKm;
+    }
+    const t_hr = speedKmh>0 ? dsf/speedKmh : 0;
+    const e = errorAt(imu, t_hr, v_ms);
+    pts.push({d, ...e});
+  }
+  return pts;
+}
+
+/* ---------- Rendering: sidebar ---------- */
+function renderIMUList(){
+  const list = document.getElementById('imuList');
+  list.innerHTML = '';
+  document.getElementById('imuCount').textContent = imus.length;
+  imus.forEach(imu=>{
+    const card = document.createElement('div');
+    card.className='imu-card';
+    card.style.setProperty('--imu-color', imu.color);
+    card.innerHTML = `
+      <div class="imu-card-top">
+        <div class="imu-swatch"></div>
+        <input class="imu-name-input" value="${escapeHtml(imu.name)}" data-field="name" data-id="${imu.id}">
+        <button class="imu-remove" data-remove="${imu.id}" title="Remove">×</button>
+      </div>
+      <div class="imu-fields">
+        <div class="field-mini"><label>Gyro bias (°/hr)</label>
+          <input type="number" step="any" value="${imu.gyroBias}" data-field="gyroBias" data-id="${imu.id}"></div>
+        <div class="field-mini"><label>ARW (°/√hr)</label>
+          <input type="number" step="any" value="${imu.arw}" data-field="arw" data-id="${imu.id}"></div>
+        <div class="field-mini"><label>Accel bias (µg)</label>
+          <input type="number" step="any" value="${imu.accelBias}" data-field="accelBias" data-id="${imu.id}"></div>
+        <div class="field-mini"><label>VRW (m/s/√hr)</label>
+          <input type="number" step="any" value="${imu.vrw}" data-field="vrw" data-id="${imu.id}"></div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('input[data-field]').forEach(inp=>{
+    inp.addEventListener('input', onFieldChange);
+  });
+  list.querySelectorAll('button[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      imus = imus.filter(x=>x.id !== Number(btn.dataset.remove));
+      renderIMUList();
+      renderAll();
+    });
+  });
+}
+
+function onFieldChange(e){
+  const id = Number(e.target.dataset.id);
+  const field = e.target.dataset.field;
+  const imu = imus.find(x=>x.id===id);
+  if(!imu) return;
+  if(field==='name'){ imu.name = e.target.value; }
+  else { imu[field] = parseFloat(e.target.value) || 0; }
+  renderAll();
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- Rendering: voyage plot (signature SVG) ---------- */
+function renderVoyagePlot(){
+  const svg = document.getElementById('voyageSvg');
+  const maxDist = Number(document.getElementById('distRange').value);
+  const speed = Number(document.getElementById('speedRange').value);
+  const fixKm = Number(document.getElementById('fixRange').value);
+
+  const W = 900, H = 560;
+  const top = 46, bottom = 500;
+  const midX = 300;
+  const plotHalfW = 220; // px available each side for max error
+
+  // compute all series, find max total error for scale
+  const allSeries = imus.map(imu=>({imu, pts: computeSeries(imu, maxDist, speed, fixKm, 140)}));
+  let maxErr = 1;
+  allSeries.forEach(s=> s.pts.forEach(p=> { if(p.total>maxErr) maxErr = p.total; }));
+  const scale = plotHalfW / maxErr; // px per meter
+
+  const yForD = d => top + (bottom-top)*(d/maxDist);
+
+  let svgParts = [];
+
+  // range rings (horizontal grid) every 1/6th
+  const ringCount = 6;
+  for(let i=0;i<=ringCount;i++){
+    const d = maxDist*i/ringCount;
+    const y = yForD(d);
+    svgParts.push(`<line x1="60" y1="${y}" x2="840" y2="${y}" stroke="var(--grid-line)" stroke-width="1"/>`);
+    svgParts.push(`<text x="850" y="${y+4}" font-family="var(--mono)" font-size="10.5" fill="#7f8f86">${Math.round(d)} km</text>`);
+  }
+
+  // center track line
+  svgParts.push(`<line x1="${midX}" y1="${top}" x2="${midX}" y2="${bottom}" stroke="#3a4a41" stroke-width="1.4" stroke-dasharray="2,4"/>`);
+  svgParts.push(`<text x="${midX+6}" y="${top-10}" font-family="var(--mono)" font-size="10" fill="#7f8f86">TRACK</text>`);
+
+  // scale legend
+  const scaleBarM = niceScaleValue(maxErr/2);
+  const scaleBarPx = scaleBarM*scale;
+  svgParts.push(`<line x1="60" y1="${bottom+28}" x2="${60+scaleBarPx}" y2="${bottom+28}" stroke="#e2a340" stroke-width="2"/>`);
+  svgParts.push(`<text x="60" y="${bottom+42}" font-family="var(--mono)" font-size="10" fill="#e2a340">${formatMeters(scaleBarM)} lateral (uncertainty scale, not true-to-track-distance scale)</text>`);
+
+  // per-IMU wedge
+  allSeries.forEach(({imu, pts})=>{
+    let left = [], right = [];
+    pts.forEach(p=>{
+      const y = yForD(p.d);
+      const halfW = p.total*scale;
+      left.push(`${midX-halfW},${y}`);
+      right.push(`${midX+halfW},${y}`);
+    });
+    const pathPts = left.concat(right.reverse()).join(' ');
+    svgParts.push(`<polygon points="${pathPts}" fill="${imu.color}" opacity="0.14"/>`);
+    // boundary strokes
+    const leftPath = pts.map((p,i)=>`${i===0?'M':'L'} ${midX-p.total*scale} ${yForD(p.d)}`).join(' ');
+    const rightPath = pts.map((p,i)=>`${i===0?'M':'L'} ${midX+p.total*scale} ${yForD(p.d)}`).join(' ');
+    svgParts.push(`<path d="${leftPath}" fill="none" stroke="${imu.color}" stroke-width="1.4" opacity="0.85"/>`);
+    svgParts.push(`<path d="${rightPath}" fill="none" stroke="${imu.color}" stroke-width="1.4" opacity="0.85"/>`);
+
+    // end label
+    const last = pts[pts.length-1];
+    const yEnd = yForD(last.d);
+    const xEnd = midX + last.total*scale + 6;
+    svgParts.push(`<text x="${Math.min(xEnd, 780)}" y="${yEnd+3}" font-family="var(--mono)" font-size="10.5" fill="${imu.color}">${formatMeters(last.total)}</text>`);
+  });
+
+  // fix markers
+  if(fixKm>0){
+    for(let d=fixKm; d<maxDist; d+=fixKm){
+      const y = yForD(d);
+      svgParts.push(`<line x1="${midX-6}" y1="${y}" x2="${midX+6}" y2="${y}" stroke="#5fd4c9" stroke-width="2"/>`);
+    }
+  }
+
+  // axis border
+  svgParts.push(`<rect x="60" y="${top}" width="780" height="${bottom-top}" fill="none" stroke="var(--grid-line-strong)" stroke-width="1"/>`);
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = svgParts.join('\n');
+
+  // legend
+  const legend = document.getElementById('legendRow');
+  legend.innerHTML = imus.map(imu=>`<div class="legend-item"><span class="legend-dot" style="background:${imu.color}"></span>${escapeHtml(imu.name)}</div>`).join('') +
+    (fixKm>0 ? `<div class="legend-item"><span class="legend-dot" style="background:#5fd4c9"></span>fix every ${fixKm} km</div>` : '');
+}
+
+function niceScaleValue(v){
+  if(v<=0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v/pow;
+  let nice;
+  if(n<1.5) nice=1; else if(n<3.5) nice=2; else if(n<7.5) nice=5; else nice=10;
+  return nice*pow;
+}
+function formatMeters(m){
+  if(m>=100000) return (m/1000).toFixed(0)+' km';
+  if(m>=1000) return (m/1000).toFixed(1)+' km';
+  return m.toFixed(1)+' m';
+}
+
+/* ---------- Rendering: line chart ---------- */
+function renderChart(){
+  const maxDist = Number(document.getElementById('distRange').value);
+  const speed = Number(document.getElementById('speedRange').value);
+  const fixKm = Number(document.getElementById('fixRange').value);
+  const logScale = document.getElementById('logToggle').checked;
+
+  const labels = [];
+  const nSamples = 100;
+  for(let i=0;i<=nSamples;i++) labels.push(Math.round(maxDist*i/nSamples));
+
+  const datasets = imus.map(imu=>{
+    const pts = computeSeries(imu, maxDist, speed, fixKm, nSamples);
+    return {
+      label: imu.name,
+      data: pts.map(p=>logScale ? Math.max(p.total,0.01) : p.total),
+      borderColor: imu.color,
+      backgroundColor: imu.color,
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.15,
+    };
+  });
+
+  const ctx = document.getElementById('errChart').getContext('2d');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true,
+      animation:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#dfe6e1', font:{family:"'JetBrains Mono', monospace", size:11} } },
+        tooltip:{
+          callbacks:{
+            label: ctx => `${ctx.dataset.label}: ${formatMeters(ctx.parsed.y)}`
+          }
+        }
+      },
+      scales:{
+        x:{ title:{ display:true, text:'Distance travelled (km)', color:'#7f8f86' },
+            ticks:{ color:'#7f8f86', maxTicksLimit:10 }, grid:{ color:'#1d2a24' } },
+        y:{ type: logScale?'logarithmic':'linear',
+            title:{ display:true, text:'Position error (m)', color:'#7f8f86' },
+            ticks:{ color:'#7f8f86' }, grid:{ color:'#1d2a24' } }
+      }
+    }
+  });
+}
+
+/* ---------- Rendering: summary table ---------- */
+function renderSummaryTable(){
+  const maxDist = Number(document.getElementById('distRange').value);
+  const speed = Number(document.getElementById('speedRange').value);
+  const fixKm = Number(document.getElementById('fixRange').value);
+  const checkpoints = [0.25, 0.5, 0.75, 1.0].map(f=>Math.round(maxDist*f));
+
+  const table = document.getElementById('summaryTable');
+  let html = '<tr><th>IMU</th>' + checkpoints.map(c=>`<th>${c} km</th>`).join('') + '</tr>';
+  imus.forEach(imu=>{
+    const speedKmh = speed*KN2KMH;
+    const v_ms = speed*0.514444;
+    const cells = checkpoints.map(d=>{
+      let dsf = fixKm>0 ? (d % fixKm) : d;
+      const t_hr = speedKmh>0 ? dsf/speedKmh : 0;
+      const e = errorAt(imu, t_hr, v_ms);
+      return `<td style="color:${imu.color}">${formatMeters(e.total)}</td>`;
+    }).join('');
+    html += `<tr><td class="imuname">${escapeHtml(imu.name)}</td>${cells}</tr>`;
+  });
+  table.innerHTML = html;
+}
+
+/* ---------- Master render ---------- */
+function renderAll(){
+  document.getElementById('speedVal').textContent = Number(document.getElementById('speedRange').value).toFixed(1)+' kn';
+  const maxDist = Number(document.getElementById('distRange').value);
+  document.getElementById('distVal').textContent = maxDist+' km';
+  document.getElementById('rangeMetaLabel').textContent = `0–${maxDist} km`;
+  const fixKm = Number(document.getElementById('fixRange').value);
+  document.getElementById('fixVal').textContent = fixKm===0 ? 'No fixes (pure DR)' : `every ${fixKm} km`;
+
+  renderVoyagePlot();
+  renderChart();
+  renderSummaryTable();
+}
+
+/* ---------- Wire up controls ---------- */
+document.getElementById('speedRange').addEventListener('input', renderAll);
+document.getElementById('distRange').addEventListener('input', renderAll);
+document.getElementById('fixRange').addEventListener('input', renderAll);
+document.getElementById('logToggle').addEventListener('change', renderAll);
+
+document.getElementById('addBlankBtn').addEventListener('click', ()=>{
+  imus.push(makeIMU(null, nextColor()));
+  renderIMUList();
+  renderAll();
+});
+
+document.getElementById('presetSelect').addEventListener('change', (e)=>{
+  const key = e.target.value;
+  if(!key) return;
+  imus.push(makeIMU(PRESETS[key], nextColor()));
+  renderIMUList();
+  renderAll();
+  e.target.value = '';
+});
+
+/* ---------- Init with two starter IMUs ---------- */
+imus.push(makeIMU(PRESETS.industrial, nextColor()));
+imus.push(makeIMU(PRESETS.tactical, nextColor()));
+imus.push(makeIMU(PRESETS.nav, nextColor()));
+renderIMUList();
+renderAll();
+</script>
+</body>
+</html>
