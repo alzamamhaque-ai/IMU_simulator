@@ -254,6 +254,9 @@
           <span class="eyebrow">Total position error vs. distance travelled</span>
         </div>
         <canvas id="errChart"></canvas>
+        <div style="font-family:var(--mono);font-size:10.5px;color:var(--text-faint);margin-top:8px;">
+          Dashed lines = exact max drift reached in one fix cycle (the number that matters when a correction interval is set — the sawtooth resets to 0 right after this point).
+        </div>
         <table class="summary" id="summaryTable"></table>
       </div>
 
@@ -463,11 +466,20 @@ function renderVoyagePlot(){
     svgParts.push(`<path d="${leftPath}" fill="none" stroke="${imu.color}" stroke-width="1.4" opacity="0.85"/>`);
     svgParts.push(`<path d="${rightPath}" fill="none" stroke="${imu.color}" stroke-width="1.4" opacity="0.85"/>`);
 
-    // end label
+    // end label (state at the very last sampled distance)
     const last = pts[pts.length-1];
     const yEnd = yForD(last.d);
     const xEnd = midX + last.total*scale + 6;
-    svgParts.push(`<text x="${Math.min(xEnd, 780)}" y="${yEnd+3}" font-family="var(--mono)" font-size="10.5" fill="${imu.color}">${formatMeters(last.total)}</text>`);
+    svgParts.push(`<text x="${Math.min(xEnd, 780)}" y="${yEnd+3}" font-family="var(--mono)" font-size="10.5" fill="${imu.color}" opacity="0.6">at end: ${formatMeters(last.total)}</text>`);
+
+    // per-cycle peak reference (the number that matters when fixes are on) —
+    // exact value, not sampled, drawn as a dashed line + label at the point
+    // where drift is maximum, right before the first reset.
+    const cyc = computeCyclePeak(imu, speed, maxDist, fixKm);
+    const yPeak = yForD(Math.min(cyc.cycleDistKm, maxDist));
+    const xPeakEdge = midX + cyc.peak*scale;
+    svgParts.push(`<line x1="60" y1="${yPeak}" x2="${xPeakEdge}" y2="${yPeak}" stroke="${imu.color}" stroke-width="1" stroke-dasharray="1,3" opacity="0.55"/>`);
+    svgParts.push(`<circle cx="${xPeakEdge}" cy="${yPeak}" r="2.6" fill="${imu.color}"/>`);
   });
 
   // fix markers
@@ -484,9 +496,15 @@ function renderVoyagePlot(){
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = svgParts.join('\n');
 
-  // legend
+  // legend — includes the exact per-cycle peak number for each IMU
   const legend = document.getElementById('legendRow');
-  legend.innerHTML = imus.map(imu=>`<div class="legend-item"><span class="legend-dot" style="background:${imu.color}"></span>${escapeHtml(imu.name)}</div>`).join('') +
+  legend.innerHTML = imus.map(imu=>{
+    const cyc = computeCyclePeak(imu, speed, maxDist, fixKm);
+    const peakInfo = fixKm>0
+      ? ` — peak/cycle: <b style="color:${imu.color}">${formatMeters(cyc.peak)}</b> in ${formatDuration(cyc.cycleTimeHr)}`
+      : ` — peak over full run: <b style="color:${imu.color}">${formatMeters(cyc.peak)}</b>`;
+    return `<div class="legend-item"><span class="legend-dot" style="background:${imu.color}"></span>${escapeHtml(imu.name)}${peakInfo}</div>`;
+  }).join('') +
     (fixKm>0 ? `<div class="legend-item"><span class="legend-dot" style="background:#5fd4c9"></span>fix every ${fixKm} km</div>` : '');
 }
 
@@ -510,6 +528,16 @@ function formatDuration(hr){
   const days = Math.floor(hr/24);
   const rem = hr - days*24;
   return `${days}d ${rem.toFixed(0)}h`;
+}
+// exact (non-sampled) peak drift reached at the end of one fix cycle —
+// this is the number that matters when a correction interval is in use,
+// since the sawtooth resets to 0 right after this point.
+function computeCyclePeak(imu, speedKn, maxDistKm, fixKm){
+  const speedKmh = speedKn*KN2KMH;
+  const v_ms = speedKn*0.514444;
+  const cycleDistKm = fixKm>0 ? fixKm : maxDistKm;
+  const cycleTimeHr = speedKmh>0 ? cycleDistKm/speedKmh : 0;
+  return { peak: errorAt(imu, cycleTimeHr, v_ms).total, cycleDistKm, cycleTimeHr };
 }
 
 /* ---------- Rendering: line chart ---------- */
@@ -538,9 +566,41 @@ function renderChart(){
 
   const ctx = document.getElementById('errChart').getContext('2d');
   if(chart) chart.destroy();
+
+  const peakLinePlugin = {
+    id: 'peakLines',
+    afterDatasetsDraw(c){
+      const {ctx: cx, chartArea, scales} = c;
+      cx.save();
+      imus.forEach((imu, i)=>{
+        const cyc = computeCyclePeak(imu, speed, maxDist, fixKm);
+        const yVal = logScale ? Math.max(cyc.peak, 0.01) : cyc.peak;
+        const yPx = scales.y.getPixelForValue(yVal);
+        if(yPx < chartArea.top || yPx > chartArea.bottom) return;
+        cx.strokeStyle = imu.color;
+        cx.globalAlpha = 0.55;
+        cx.setLineDash([4,3]);
+        cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(chartArea.left, yPx);
+        cx.lineTo(chartArea.right, yPx);
+        cx.stroke();
+        cx.setLineDash([]);
+        cx.globalAlpha = 1;
+        cx.fillStyle = imu.color;
+        cx.font = "11px 'JetBrains Mono', monospace";
+        const label = `${formatMeters(cyc.peak)}`;
+        const labelY = Math.max(chartArea.top+10, Math.min(chartArea.bottom-4, yPx - 4 - (i%2)*12));
+        cx.fillText(label, chartArea.right - cx.measureText(label).width - 6, labelY);
+      });
+      cx.restore();
+    }
+  };
+
   chart = new Chart(ctx, {
     type:'line',
     data:{ labels, datasets },
+    plugins:[peakLinePlugin],
     options:{
       responsive:true,
       animation:false,
