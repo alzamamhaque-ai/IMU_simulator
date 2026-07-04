@@ -8,30 +8,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
-:root {
-  --bg: #f8fafc;            /* Light background (slate tint) */
-  --bg-panel: #ffffff;      /* Main panels ke liye pure white */
-  --bg-panel-2: #f1f5f9;    /* Secondary panels ya inputs ke liye light grey */
-  --grid-line: #e2e8f0;     /* Light grid lines */
-  --grid-line-strong: #cbd5e1; /* Thodi strong divider lines */
-  
-  /* Primary accents ko thoda deep kiya hai taaki light bg par acche se dikhein */
-  --amber: #b45309;         
-  --amber-dim: #d97706;     
-  --cyan: #0f766e;          
-  --cyan-dim: #14b8a6;      
-  --coral: #dc2626;         
-  --violet: #6d28d9;        
-  
-  /* Text colors ko dark kiya hai taaki visibility perfect ho */
-  --text: #0f172a;          /* Main high-contrast text */
-  --text-dim: #475569;      /* Secondary text */
-  --text-faint: #94a3b8;    /* Muted text/labels */
-  
-  --mono: 'JetBrains Mono', monospace;
-  --display: 'Space Grotesk', sans-serif;
-  --body: 'Inter', sans-serif;
-}
+  :root{
+    --bg: #eef1ec;
+    --bg-panel: #f8f9f6;
+    --bg-panel-2: #e9ece5;
+    --grid-line: #d6dcd0;
+    --grid-line-strong: #b7c0b0;
+    --amber: #a8691a;
+    --amber-dim: #cf9c55;
+    --cyan: #147d72;
+    --cyan-dim: #5fa39c;
+    --coral: #b23d28;
+    --violet: #5c4d9e;
+    --text: #1d2420;
+    --text-dim: #5b6a60;
+    --text-faint: #8b9689;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--body);}
   body{
@@ -113,7 +108,7 @@
   }
   select{color:var(--text-dim);}
   button.btn{color:var(--amber);border-color:var(--amber-dim);font-weight:600;letter-spacing:0.2px;}
-  button.btn:hover{background:#171f1a;}
+  button.btn:hover{background:#e3e7dd;}
   button.btn.secondary{color:var(--text-dim);border-color:var(--grid-line-strong);font-weight:500;}
 
   .note{
@@ -285,7 +280,7 @@
 const DEG2RAD = Math.PI/180;
 const G = 9.80665;
 const KN2KMH = 1.852;
-const COLORS = ['#e2a340','#5fd4c9','#d9705a','#9a8cd4','#7bc47f','#e0d060'];
+const COLORS = ['#a8691a','#147d72','#b23d28','#5c4d9e','#3f8a4d','#a08a10'];
 
 const PRESETS = {
   consumer:  { name:'Consumer MEMS',    gyroBias:10,    arw:0.50, accelBias:1000, vrw:0.050 },
@@ -441,18 +436,18 @@ function renderVoyagePlot(){
     const d = maxDist*i/ringCount;
     const y = yForD(d);
     svgParts.push(`<line x1="60" y1="${y}" x2="840" y2="${y}" stroke="var(--grid-line)" stroke-width="1"/>`);
-    svgParts.push(`<text x="850" y="${y+4}" font-family="var(--mono)" font-size="10.5" fill="#7f8f86">${Math.round(d)} km</text>`);
+    svgParts.push(`<text x="850" y="${y+4}" font-family="var(--mono)" font-size="10.5" fill="#5b6a60">${Math.round(d)} km</text>`);
   }
 
   // center track line
-  svgParts.push(`<line x1="${midX}" y1="${top}" x2="${midX}" y2="${bottom}" stroke="#3a4a41" stroke-width="1.4" stroke-dasharray="2,4"/>`);
-  svgParts.push(`<text x="${midX+6}" y="${top-10}" font-family="var(--mono)" font-size="10" fill="#7f8f86">TRACK</text>`);
+  svgParts.push(`<line x1="${midX}" y1="${top}" x2="${midX}" y2="${bottom}" stroke="#aeb8a7" stroke-width="1.4" stroke-dasharray="2,4"/>`);
+  svgParts.push(`<text x="${midX+6}" y="${top-10}" font-family="var(--mono)" font-size="10" fill="#5b6a60">TRACK</text>`);
 
   // scale legend
   const scaleBarM = niceScaleValue(maxErr/2);
   const scaleBarPx = scaleBarM*scale;
-  svgParts.push(`<line x1="60" y1="${bottom+28}" x2="${60+scaleBarPx}" y2="${bottom+28}" stroke="#e2a340" stroke-width="2"/>`);
-  svgParts.push(`<text x="60" y="${bottom+42}" font-family="var(--mono)" font-size="10" fill="#e2a340">${formatMeters(scaleBarM)} lateral (uncertainty scale, not true-to-track-distance scale)</text>`);
+  svgParts.push(`<line x1="60" y1="${bottom+28}" x2="${60+scaleBarPx}" y2="${bottom+28}" stroke="#a8691a" stroke-width="2"/>`);
+  svgParts.push(`<text x="60" y="${bottom+42}" font-family="var(--mono)" font-size="10" fill="#a8691a">${formatMeters(scaleBarM)} lateral (uncertainty scale, not true-to-track-distance scale)</text>`);
 
   // per-IMU wedge
   allSeries.forEach(({imu, pts})=>{
@@ -491,7 +486,7 @@ function renderVoyagePlot(){
   if(fixKm>0){
     for(let d=fixKm; d<maxDist; d+=fixKm){
       const y = yForD(d);
-      svgParts.push(`<line x1="${midX-6}" y1="${y}" x2="${midX+6}" y2="${y}" stroke="#5fd4c9" stroke-width="2"/>`);
+      svgParts.push(`<line x1="${midX-6}" y1="${y}" x2="${midX+6}" y2="${y}" stroke="#147d72" stroke-width="2"/>`);
     }
   }
 
@@ -510,7 +505,7 @@ function renderVoyagePlot(){
       : ` — peak over full run: <b style="color:${imu.color}">${formatMeters(cyc.peak)}</b>`;
     return `<div class="legend-item"><span class="legend-dot" style="background:${imu.color}"></span>${escapeHtml(imu.name)}${peakInfo}</div>`;
   }).join('') +
-    (fixKm>0 ? `<div class="legend-item"><span class="legend-dot" style="background:#5fd4c9"></span>fix every ${fixKm} km</div>` : '');
+    (fixKm>0 ? `<div class="legend-item"><span class="legend-dot" style="background:#147d72"></span>fix every ${fixKm} km</div>` : '');
 }
 
 function niceScaleValue(v){
@@ -611,7 +606,7 @@ function renderChart(){
       animation:false,
       interaction:{ mode:'index', intersect:false },
       plugins:{
-        legend:{ labels:{ color:'#dfe6e1', font:{family:"'JetBrains Mono', monospace", size:11} } },
+        legend:{ labels:{ color:'#1d2420', font:{family:"'JetBrains Mono', monospace", size:11} } },
         tooltip:{
           callbacks:{
             label: ctx => `${ctx.dataset.label}: ${formatMeters(ctx.parsed.y)}`
@@ -619,11 +614,11 @@ function renderChart(){
         }
       },
       scales:{
-        x:{ title:{ display:true, text:'Distance travelled (km)', color:'#7f8f86' },
-            ticks:{ color:'#7f8f86', maxTicksLimit:10 }, grid:{ color:'#1d2a24' } },
+        x:{ title:{ display:true, text:'Distance travelled (km)', color:'#5b6a60' },
+            ticks:{ color:'#5b6a60', maxTicksLimit:10 }, grid:{ color:'#d6dcd0' } },
         y:{ type: logScale?'logarithmic':'linear',
-            title:{ display:true, text:'Position error (m)', color:'#7f8f86' },
-            ticks:{ color:'#7f8f86' }, grid:{ color:'#1d2a24' } }
+            title:{ display:true, text:'Position error (m)', color:'#5b6a60' },
+            ticks:{ color:'#5b6a60' }, grid:{ color:'#d6dcd0' } }
       }
     }
   });
