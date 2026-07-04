@@ -8,25 +8,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
-  :root{
-    --bg: #f4f6f5;
-    --bg-panel: #101915;
-    --bg-panel-2: #0d1512;
-    --grid-line: #1d2a24;
-    --grid-line-strong: #2a3b33;
-    --amber: #e2a340;
-    --amber-dim: #8a6a30;
-    --cyan: #5fd4c9;
-    --cyan-dim: #35766f;
-    --coral: #d9705a;
-    --violet: #9a8cd4;
-    --text: #dfe6e1;
-    --text-dim: #7f8f86;
-    --text-faint: #4d5c54;
-    --mono: 'JetBrains Mono', monospace;
-    --display: 'Space Grotesk', sans-serif;
-    --body: 'Inter', sans-serif;
-  }
+:root {
+  --bg: #f8fafc;            /* Light background (slate tint) */
+  --bg-panel: #ffffff;      /* Main panels ke liye pure white */
+  --bg-panel-2: #f1f5f9;    /* Secondary panels ya inputs ke liye light grey */
+  --grid-line: #e2e8f0;     /* Light grid lines */
+  --grid-line-strong: #cbd5e1; /* Thodi strong divider lines */
+  
+  /* Primary accents ko thoda deep kiya hai taaki light bg par acche se dikhein */
+  --amber: #b45309;         
+  --amber-dim: #d97706;     
+  --cyan: #0f766e;          
+  --cyan-dim: #14b8a6;      
+  --coral: #dc2626;         
+  --violet: #6d28d9;        
+  
+  /* Text colors ko dark kiya hai taaki visibility perfect ho */
+  --text: #0f172a;          /* Main high-contrast text */
+  --text-dim: #475569;      /* Secondary text */
+  --text-faint: #94a3b8;    /* Muted text/labels */
+  
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Space Grotesk', sans-serif;
+  --body: 'Inter', sans-serif;
+}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--body);}
   body{
