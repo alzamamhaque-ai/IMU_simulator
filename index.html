@@ -244,6 +244,11 @@
         <div class="legend-row" id="legendRow"></div>
       </div>
 
+      <div class="section-title">Per-fix-cycle drift — max drift reached before the next reset, and how long that takes</div>
+      <div class="panel">
+        <table class="summary" id="fixCycleTable"></table>
+      </div>
+
       <div class="panel chart-panel">
         <div class="panel-head" style="margin:-14px -16px 14px;">
           <span class="eyebrow">Total position error vs. distance travelled</span>
@@ -498,6 +503,14 @@ function formatMeters(m){
   if(m>=1000) return (m/1000).toFixed(1)+' km';
   return m.toFixed(1)+' m';
 }
+function formatDuration(hr){
+  if(hr <= 0) return '0';
+  if(hr < 1) return Math.round(hr*60)+' min';
+  if(hr < 48) return hr.toFixed(1)+' hr';
+  const days = Math.floor(hr/24);
+  const rem = hr - days*24;
+  return `${days}d ${rem.toFixed(0)}h`;
+}
 
 /* ---------- Rendering: line chart ---------- */
 function renderChart(){
@@ -574,6 +587,33 @@ function renderSummaryTable(){
   table.innerHTML = html;
 }
 
+/* ---------- Rendering: per-fix-cycle drift summary ---------- */
+function renderFixCycleSummary(){
+  const maxDist = Number(document.getElementById('distRange').value);
+  const speed = Number(document.getElementById('speedRange').value);
+  const fixKm = Number(document.getElementById('fixRange').value);
+  const speedKmh = speed*KN2KMH;
+  const v_ms = speed*0.514444;
+
+  // the distance covered in one full cycle: the fix interval itself,
+  // or the whole run if there are no resets at all
+  const cycleDistKm = fixKm>0 ? fixKm : maxDist;
+  const cycleTimeHr = speedKmh>0 ? cycleDistKm/speedKmh : 0;
+
+  const table = document.getElementById('fixCycleTable');
+  let html = `<tr><th>IMU</th><th>Cycle distance</th><th>Time to cover it</th><th>Max drift reached</th></tr>`;
+  imus.forEach(imu=>{
+    const e = errorAt(imu, cycleTimeHr, v_ms);
+    html += `<tr>
+      <td class="imuname" style="color:${imu.color}">${escapeHtml(imu.name)}</td>
+      <td>${cycleDistKm.toFixed(0)} km</td>
+      <td>${formatDuration(cycleTimeHr)}</td>
+      <td style="color:${imu.color};font-weight:600;">${formatMeters(e.total)}</td>
+    </tr>`;
+  });
+  table.innerHTML = html;
+}
+
 /* ---------- Master render ---------- */
 function renderAll(){
   document.getElementById('speedVal').textContent = Number(document.getElementById('speedRange').value).toFixed(1)+' kn';
@@ -586,6 +626,7 @@ function renderAll(){
   renderVoyagePlot();
   renderChart();
   renderSummaryTable();
+  renderFixCycleSummary();
 }
 
 /* ---------- Wire up controls ---------- */
